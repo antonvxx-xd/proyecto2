@@ -1,0 +1,46 @@
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('./catalogo.db');
+
+db.serialize(() => {
+    // Crear tabla
+    db.run(`
+        CREATE TABLE IF NOT EXISTS productos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            descripcion TEXT NOT NULL,
+            precio REAL NOT NULL,
+            tallas TEXT NOT NULL,
+            colores TEXT NOT NULL,
+            imagen_url TEXT
+        )
+    `);
+
+    // Limpiar tabla por si acaso
+    db.run(`DELETE FROM productos`);
+
+    // Insertar los productos del catálogo
+    const stmt = db.prepare(`
+        INSERT INTO productos (nombre, descripcion, precio, tallas, colores, imagen_url) 
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const productos = [
+        ['Abrigo Trench Clásico', 'Corte recto, cinturón ajustable, forro interior. Ideal para entretiempo.', 3800.00, 'S, M, L, XL', 'Beige / Negro', 'https://images.unsplash.com/photo-1544441893-675973e31985?w=500'],
+        ['Bufanda de Lana Estampada', '100% lana, tejido suave, flecos en los extremos.', 950.00, 'Única', 'Camel / Gris', 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=500'],
+        ['Camisa Polo Piqué', 'Algodón piqué transpirable, corte regular, cuello y puños ribeteados.', 650.00, 'S, M, L, XL', 'Blanco / Negro / Azul marino', 'https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?w=500'],
+        ['Bolso de Mano Estructurado', 'Cuero sintético premium, cierre metálico, compartimento interior.', 2200.00, 'Única', 'Café / Negro', 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500'],
+        ['Suéter de Cuello Alto', 'Tejido acanalado, mezcla de lana, ajuste entallado.', 1100.00, 'S, M, L', 'Crema / Gris oxford', 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=500'],
+        ['Gorra Ajustable Bordada', 'Algodón, visera curva, cierre trasero ajustable.', 480.00, 'Única', 'Negro / Beige', 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500'],
+        ['Pantalón de Vestir Slim', 'Tela con stretch, corte slim, pretina interior ajustable.', 1350.00, '28-38', 'Negro / Gris carbón', 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500'],
+        ['Billetera de Cuero', 'Varias tarjeteras, compartimento para billetes, cierre plegable.', 780.00, 'Única', 'Café / Negro', 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500'],
+        ['Vestido Camisero Midi', 'Manga larga, cinturón removible, botonadura frontal completa.', 1650.00, 'XS, S, M, L', 'Marfil / Negro', 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500'],
+        ['Chaqueta Acolchada Ligera', 'Relleno térmico, bolsillos con cierre, capucha desmontable.', 2450.00, 'S, M, L, XL', 'Verde oliva / Negro', 'https://images.unsplash.com/photo-1548883354-7622d03aca27?w=500']
+    ];
+
+    productos.forEach(prod => stmt.run(prod));
+    stmt.finalize();
+
+    console.log('¡Base de datos cargada exitosamente!');
+});
+
+db.close();
