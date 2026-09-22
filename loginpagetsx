@@ -1,0 +1,93 @@
+import { useState, type FormEvent } from "react";
+import "./LoginPage.css";
+import logo from "./assets/logoburberry.png.webp";
+
+interface LoginPageProps {
+  onSubmit?: (username: string, password: string) => void;
+  onSignupClick?: () => void;
+}
+
+export default function LoginPage({ onSubmit, onSignupClick }: LoginPageProps) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+
+    if (!username.trim() || !password.trim()) {
+      setError("Completa usuario y contraseña para continuar.");
+      return;
+    }
+
+    setError("");
+    onSubmit?.(username, password);
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <img src={logo} alt="Logo de la marca" className="login-logo" />
+
+        <h1 className="login-title">Bienvenido</h1>
+        <p className="login-subtitle">Ingresa tus datos para acceder a tu cuenta.</p>
+
+        <form className="login-form" onSubmit={handleSubmit} noValidate>
+          <label className="login-field">
+            <span>Usuario</span>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Ingrese su usuario"
+              autoComplete="username"
+            />
+          </label>
+
+          <label className="login-field">
+            <span>Contraseña</span>
+            <div className="login-password-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Ingrese su contraseña"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="login-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
+          </label>
+
+          {error && (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" className="login-submit">
+            Iniciar sesión
+          </button>
+        </form>
+
+        <a className="login-forgot" href="#">
+          ¿Olvidaste tu contraseña?
+        </a>
+
+        <p className="login-signup">
+          ¿No tienes una cuenta?{" "}
+          <button type="button" className="login-signup-link" onClick={onSignupClick}>
+            Regístrate
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
