@@ -1,0 +1,13 @@
+import LoginPage from './LoginPage'
+import './App.css'
+
+function App() {
+  return (
+    <LoginPage
+      onSubmit={(usuario, contrasena) => console.log(usuario, contrasena)}
+      onSignupClick={() => console.log('ir a registro')}
+    />
+  )
+}
+
+export default App
