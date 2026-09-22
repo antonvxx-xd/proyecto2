@@ -1,0 +1,112 @@
+using Microsoft.Identity.Client;
+
+// ------------------------------------------------------------
+// ANTES DE EJECUTAR:
+// 1) Registra tu app en https://portal.azure.com
+//    > Microsoft Entra ID > Registros de aplicaciones > Nuevo registro
+//    - Tipos de cuenta: "Cuentas en cualquier directorio organizativo
+//      y cuentas personales de Microsoft"
+//    - URI de redirección: plataforma "Cliente público / nativo",
+//      valor: http://localhost
+// 2) Copia el "Id. de aplicación (cliente)" y pégalo abajo.
+// 3) Instala el paquete NuGet: Microsoft.Identity.Client
+// ------------------------------------------------------------
+
+const string clientId = "PEGA-AQUI-TU-CLIENT-ID";
+string[] scopes = { "User.Read" };
+
+var app = PublicClientApplicationBuilder
+    .Create(clientId)
+    .WithAuthority(AzureCloudInstance.AzurePublic, "common")
+    .WithRedirectUri("http://localhost")
+    .Build();
+
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("=== Administrador de cuentas ===");
+    Console.WriteLine("1. Agregar cuenta (Microsoft / Azure)");
+    Console.WriteLine("2. Ver cuentas agregadas");
+    Console.WriteLine("3. Quitar una cuenta");
+    Console.WriteLine("4. Salir");
+    Console.Write("Elige una opción: ");
+
+    switch (Console.ReadLine())
+    {
+        case "1":
+            await AgregarCuenta();
+            break;
+        case "2":
+            await VerCuentas();
+            break;
+        case "3":
+            await QuitarCuenta();
+            break;
+        case "4":
+            return;
+        default:
+            Console.WriteLine("Opción no válida.");
+            break;
+    }
+}
+
+async Task AgregarCuenta()
+{
+    try
+    {
+        // Abre el navegador para iniciar sesión.
+        // SelectAccount permite elegir/agregar una cuenta distinta cada vez.
+        var result = await app.AcquireTokenInteractive(scopes)
+            .WithPrompt(Prompt.SelectAccount)
+            .ExecuteAsync();
+
+        Console.WriteLine($"Cuenta agregada: {result.Account.Username}");
+    }
+    catch (MsalClientException ex) when (ex.ErrorCode == MsalError.AuthenticationCanceledError)
+    {
+        Console.WriteLine("Inicio de sesión cancelado.");
+    }
+    catch (MsalException ex)
+    {
+        Console.WriteLine($"Error al iniciar sesión: {ex.Message}");
+    }
+}
+
+async Task VerCuentas()
+{
+    var cuentas = (await app.GetAccountsAsync()).ToList();
+
+    if (cuentas.Count == 0)
+    {
+        Console.WriteLine("No hay cuentas agregadas.");
+        return;
+    }
+
+    for (int i = 0; i < cuentas.Count; i++)
+        Console.WriteLine($"{i + 1}. {cuentas[i].Username}");
+}
+
+async Task QuitarCuenta()
+{
+    var cuentas = (await app.GetAccountsAsync()).ToList();
+
+    if (cuentas.Count == 0)
+    {
+        Console.WriteLine("No hay cuentas para quitar.");
+        return;
+    }
+
+    for (int i = 0; i < cuentas.Count; i++)
+        Console.WriteLine($"{i + 1}. {cuentas[i].Username}");
+
+    Console.Write("Número de la cuenta a quitar: ");
+    if (int.TryParse(Console.ReadLine(), out int n) && n >= 1 && n <= cuentas.Count)
+    {
+        await app.RemoveAsync(cuentas[n - 1]);
+        Console.WriteLine("Cuenta quitada.");
+    }
+    else
+    {
+        Console.WriteLine("Número no válido.");
+    }
+}
