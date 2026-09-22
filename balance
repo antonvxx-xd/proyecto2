@@ -1,0 +1,301 @@
+// ---------- Almacenamiento ----------
+const STORAGE_KEY = "boutiqueBalanceData";
+
+function loadData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return {
+      ventas: [],
+      gastos: [],
+      inventario: [],
+      balanceInputs: { caja: 0, cxc: 0, cxp: 0, deuda: 0, capital: 0 },
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    parsed.ventas = parsed.ventas || [];
+    parsed.gastos = parsed.gastos || [];
+    parsed.inventario = parsed.inventario || [];
+    parsed.balanceInputs = parsed.balanceInputs || { caja: 0, cxc: 0, cxp: 0, deuda: 0, capital: 0 };
+    return parsed;
+  } catch {
+    return { ventas: [], gastos: [], inventario: [], balanceInputs: { caja: 0, cxc: 0, cxp: 0, deuda: 0, capital: 0 } };
+  }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let data = loadData();
+
+// ---------- Utilidades ----------
+function money(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString("es-GT", { style: "currency", currency: "USD" });
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ---------- Navegación ----------
+document.querySelectorAll(".nav-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.section).classList.add("active");
+  });
+});
+
+// ---------- Ventas ----------
+const formVenta = document.getElementById("form-venta");
+formVenta.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const cantidad = Number(document.getElementById("v-cantidad").value);
+  const precio = Number(document.getElementById("v-precio").value);
+  data.ventas.push({
+    id: uid(),
+    fecha: document.getElementById("v-fecha").value,
+    cliente: document.getElementById("v-cliente").value,
+    categoria: document.getElementById("v-categoria").value,
+    producto: document.getElementById("v-producto").value,
+    cantidad,
+    precio,
+    total: cantidad * precio,
+  });
+  saveData();
+  formVenta.reset();
+  document.getElementById("v-cantidad").value = 1;
+  renderAll();
+});
+
+function renderVentas() {
+  const tbody = document.getElementById("tbl-ventas");
+  tbody.innerHTML = "";
+  document.getElementById("empty-ventas").style.display = data.ventas.length ? "none" : "block";
+
+  data.ventas.forEach((v) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${v.fecha || "—"}</td>
+      <td>${escapeHtml(v.cliente)}</td>
+      <td>${escapeHtml(v.categoria)}</td>
+      <td>${escapeHtml(v.producto)}</td>
+      <td>${v.cantidad}</td>
+      <td>${money(v.precio)}</td>
+      <td>${money(v.total)}</td>
+      <td><button class="row-delete" data-id="${v.id}">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      data.ventas = data.ventas.filter((v) => v.id !== btn.dataset.id);
+      saveData();
+      renderAll();
+    });
+  });
+
+  const categorias = ["Zapatos", "Bufandas", "Chaquetas"];
+  const resumen = document.getElementById("resumen-ventas");
+  resumen.innerHTML = categorias
+    .map((cat) => {
+      const total = data.ventas.filter((v) => v.categoria === cat).reduce((s, v) => s + v.total, 0);
+      return `<div class="cat-pill"><span>${cat}</span><strong>${money(total)}</strong></div>`;
+    })
+    .join("");
+}
+
+// ---------- Gastos ----------
+const formGasto = document.getElementById("form-gasto");
+formGasto.addEventListener("submit", (e) => {
+  e.preventDefault();
+  data.gastos.push({
+    id: uid(),
+    fecha: document.getElementById("g-fecha").value,
+    concepto: document.getElementById("g-concepto").value,
+    categoria: document.getElementById("g-categoria").value,
+    proveedor: document.getElementById("g-proveedor").value,
+    monto: Number(document.getElementById("g-monto").value),
+  });
+  saveData();
+  formGasto.reset();
+  renderAll();
+});
+
+function renderGastos() {
+  const tbody = document.getElementById("tbl-gastos");
+  tbody.innerHTML = "";
+  document.getElementById("empty-gastos").style.display = data.gastos.length ? "none" : "block";
+
+  data.gastos.forEach((g) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${g.fecha || "—"}</td>
+      <td>${escapeHtml(g.concepto)}</td>
+      <td>${escapeHtml(g.categoria)}</td>
+      <td>${escapeHtml(g.proveedor || "—")}</td>
+      <td>${money(g.monto)}</td>
+      <td><button class="row-delete" data-id="${g.id}">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      data.gastos = data.gastos.filter((g) => g.id !== btn.dataset.id);
+      saveData();
+      renderAll();
+    });
+  });
+}
+
+// ---------- Inventario ----------
+const formInventario = document.getElementById("form-inventario");
+formInventario.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const stock = Number(document.getElementById("i-stock").value);
+  const costo = Number(document.getElementById("i-costo").value);
+  const precio = Number(document.getElementById("i-precio").value);
+  data.inventario.push({
+    id: uid(),
+    producto: document.getElementById("i-producto").value,
+    categoria: document.getElementById("i-categoria").value,
+    stock,
+    costo,
+    precio,
+  });
+  saveData();
+  formInventario.reset();
+  renderAll();
+});
+
+function renderInventario() {
+  const tbody = document.getElementById("tbl-inventario");
+  tbody.innerHTML = "";
+  document.getElementById("empty-inventario").style.display = data.inventario.length ? "none" : "block";
+
+  data.inventario.forEach((i) => {
+    const valorCosto = i.stock * i.costo;
+    const valorVenta = i.stock * i.precio;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(i.producto)}</td>
+      <td>${escapeHtml(i.categoria)}</td>
+      <td>${i.stock}</td>
+      <td>${money(i.costo)}</td>
+      <td>${money(i.precio)}</td>
+      <td>${money(valorCosto)}</td>
+      <td>${money(valorVenta)}</td>
+      <td><button class="row-delete" data-id="${i.id}">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      data.inventario = data.inventario.filter((i) => i.id !== btn.dataset.id);
+      saveData();
+      renderAll();
+    });
+  });
+}
+
+// ---------- Balance ----------
+const balanceInputIds = ["b-caja", "b-cxc", "b-cxp", "b-deuda", "b-capital"];
+const balanceInputKeys = { "b-caja": "caja", "b-cxc": "cxc", "b-cxp": "cxp", "b-deuda": "deuda", "b-capital": "capital" };
+
+balanceInputIds.forEach((id) => {
+  document.getElementById(id).addEventListener("input", (e) => {
+    data.balanceInputs[balanceInputKeys[id]] = Number(e.target.value) || 0;
+    saveData();
+    renderBalance();
+  });
+});
+
+function totalVentas() {
+  return data.ventas.reduce((s, v) => s + v.total, 0);
+}
+
+function totalGastos() {
+  return data.gastos.reduce((s, g) => s + g.monto, 0);
+}
+
+function totalInventarioCosto() {
+  return data.inventario.reduce((s, i) => s + i.stock * i.costo, 0);
+}
+
+function renderBalance() {
+  const ventas = totalVentas();
+  const gastos = totalGastos();
+  const utilidad = ventas - gastos;
+  const invCosto = totalInventarioCosto();
+  const { caja, cxc, cxp, deuda, capital } = data.balanceInputs;
+
+  document.getElementById("ts-ventas").textContent = money(ventas);
+  document.getElementById("ts-gastos").textContent = money(gastos);
+  document.getElementById("ts-utilidad").textContent = money(utilidad);
+
+  document.getElementById("b-ventas").textContent = money(ventas);
+  document.getElementById("b-gastos").textContent = money(gastos);
+  document.getElementById("b-utilidad").textContent = money(utilidad);
+  document.getElementById("b-utilidad2").textContent = money(utilidad);
+  document.getElementById("b-inventario").textContent = money(invCosto);
+
+  document.getElementById("b-caja").value = caja;
+  document.getElementById("b-cxc").value = cxc;
+  document.getElementById("b-cxp").value = cxp;
+  document.getElementById("b-deuda").value = deuda;
+  document.getElementById("b-capital").value = capital;
+
+  const totalActivos = caja + invCosto + cxc;
+  const totalPasivos = cxp + deuda;
+  const totalPatrimonio = capital + utilidad;
+
+  document.getElementById("b-total-activos").textContent = money(totalActivos);
+  document.getElementById("b-total-pasivos").textContent = money(totalPasivos);
+  document.getElementById("b-total-patrimonio").textContent = money(totalPatrimonio);
+
+  const diferencia = totalActivos - (totalPasivos + totalPatrimonio);
+  const checkCard = document.getElementById("check-card");
+  document.getElementById("check-value").textContent = money(diferencia);
+  if (Math.abs(diferencia) < 0.01) {
+    checkCard.classList.add("ok");
+    checkCard.classList.remove("off");
+    document.getElementById("check-label").textContent = "Activos = Pasivos + Patrimonio ✓";
+  } else {
+    checkCard.classList.add("off");
+    checkCard.classList.remove("ok");
+    document.getElementById("check-label").textContent = "Activos ≠ Pasivos + Patrimonio, revisa tus datos";
+  }
+}
+
+// ---------- Reset ----------
+document.getElementById("btn-reset").addEventListener("click", () => {
+  if (!confirm("¿Borrar todos los datos guardados en este navegador? Esta acción no se puede deshacer.")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  data = loadData();
+  renderAll();
+});
+
+// ---------- Helpers ----------
+function escapeHtml(str) {
+  if (str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderAll() {
+  renderVentas();
+  renderGastos();
+  renderInventario();
+  renderBalance();
+}
+
+renderAll();
