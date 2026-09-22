@@ -1,0 +1,159 @@
+import { useState, type FormEvent } from "react";
+import "./CardForm.css";
+
+const BANK_OPTIONS = ["Mastercard", "American Express", "BI", "Bantrab", "Banrural"];
+
+interface CardFormProps {
+  onSubmit?: (data: {
+    bank: string;
+    cardholder: string;
+    cardNumber: string;
+    expiry: string;
+    cvv: string;
+  }) => void;
+}
+
+export default function CardForm({ onSubmit }: CardFormProps) {
+  const [bank, setBank] = useState(BANK_OPTIONS[0]);
+  const [cardholder, setCardholder] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [error, setError] = useState("");
+
+  function formatCardNumber(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(.{4})/g, "$1 ").trim();
+  }
+
+  function formatExpiry(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+
+  function isExpiryValid(value: string): boolean {
+    const match = value.match(/^(\d{2})\/(\d{2})$/);
+    if (!match) return false;
+
+    const month = parseInt(match[1], 10);
+    const year = 2000 + parseInt(match[2], 10);
+    if (month < 1 || month > 12) return false;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    if (year < currentYear) return false;
+    if (year === currentYear && month < currentMonth) return false;
+
+    return true;
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+
+    const digitsOnly = cardNumber.replace(/\s/g, "");
+
+    if (!cardholder.trim()) {
+      setError("Ingresa el nombre del titular de la tarjeta.");
+      return;
+    }
+    if (digitsOnly.length < 13 || digitsOnly.length > 16) {
+      setError("El número de tarjeta no es válido.");
+      return;
+    }
+    if (!isExpiryValid(expiry)) {
+      setError("La fecha de vencimiento no es válida o la tarjeta ya expiró.");
+      return;
+    }
+    if (cvv.length < 3 || cvv.length > 4) {
+      setError("El CVV no es válido.");
+      return;
+    }
+
+    setError("");
+    onSubmit?.({ bank, cardholder, cardNumber: digitsOnly, expiry, cvv });
+  }
+
+  return (
+    <div className="card-page">
+      <div className="card-card">
+        <h1 className="card-title">Agregar tarjeta</h1>
+        <p className="card-subtitle">Selecciona tu banco e ingresa los datos de tu tarjeta.</p>
+
+        <form className="card-form" onSubmit={handleSubmit} noValidate>
+          <label className="card-field">
+            <span>Banco / Red</span>
+            <select value={bank} onChange={(e) => setBank(e.target.value)}>
+              {BANK_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="card-field">
+            <span>Nombre del titular</span>
+            <input
+              type="text"
+              value={cardholder}
+              onChange={(e) => setCardholder(e.target.value)}
+              placeholder="Como aparece en la tarjeta"
+              autoComplete="cc-name"
+            />
+          </label>
+
+          <label className="card-field">
+            <span>Número de tarjeta</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cardNumber}
+              onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+              placeholder="0000 0000 0000 0000"
+              autoComplete="cc-number"
+            />
+          </label>
+
+          <div className="card-row">
+            <label className="card-field">
+              <span>Vencimiento</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={expiry}
+                onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                placeholder="MM/AA"
+                autoComplete="cc-exp"
+              />
+            </label>
+
+            <label className="card-field">
+              <span>CVV</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={cvv}
+                onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="123"
+                autoComplete="cc-csc"
+              />
+            </label>
+          </div>
+
+          {error && (
+            <p className="card-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" className="card-submit">
+            Guardar tarjeta
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
