@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo Otoño / Invierno</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+    header { text-align: center; background: #111; color: white; padding: 30px; margin-bottom: 30px; border-radius: 8px; }
+    header h1 { margin: 0; font-size: 2.2rem; }
+    .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
+    .card img { width: 100%; height: 250px; object-fit: cover; border-radius: 6px; }
+    .card h3 { margin: 10px 0 5px; font-size: 1.2rem; }
+    .card .price { font-weight: bold; color: #111; font-size: 1.1rem; margin: 5px 0; }
+    .card .desc { font-size: 0.9rem; color: #666; margin-bottom: 15px; }
+    .card button { background: #111; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+    .card button:hover { background: #333; }
+  </style>
+</head>
+<body>
+
+  <!-- Botón del Carrito en el encabezado -->
+  <button id="cart-btn" onclick="toggleCart()" style="position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 12px 18px; background: #000; color: #fff; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+    🛒 Carrito (<span id="cart-count">0</span>)
+  </button>
+
+  <!-- Ventana Flotante del Carrito -->
+  <div id="cart-modal" style="display: none; position: fixed; top: 70px; right: 20px; background: white; border: 1px solid #ccc; padding: 20px; width: 320px; box-shadow: 0px 4px 12px rgba(0,0,0,0.25); z-index: 1000; border-radius: 8px; color: black;">
+    <h3 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 8px;">Tu Carrito</h3>
+    <div id="cart-items" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+    <p style="font-size: 1.1rem;"><strong>Total: Q<span id="cart-total">0.00</span></strong></p>
+    <button onclick="enviarPedidoWhatsApp()" style="width: 100%; background: #25D366; color: white; border: none; padding: 10px; margin-bottom: 8px; cursor: pointer; border-radius: 4px; font-weight: bold;">
+      Pedir por WhatsApp
+    </button>
+    <button onclick="toggleCart()" style="width: 100%; background: #666; color: white; border: none; padding: 8px; cursor: pointer; border-radius: 4px;">
+      Cerrar
+    </button>
+  </div>
+
+  <header>
+    <h1>COLECCIÓN OTOÑO / INVIERNO</h1>
+    <p>Catálogo de Ropa y Accesorios</p>
+  </header>
+
+  <!-- Contenedor donde se cargan los productos -->
+  <div id="productos-container" class="container"></div>
+
+  <script>
+    let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+
+    // Cargar productos desde la base de datos de SQLite
+    fetch('/api/productos')
+      .then(res => res.json())
+      .then(productos => {
+        const contenedor = document.getElementById('productos-container');
+        contenedor.innerHTML = '';
+        
+        productos.forEach(prod => {
+          const tarjeta = document.createElement('div');
+          tarjeta.className = 'card';
+          tarjeta.innerHTML = `
+            <img src="${prod.imagen_url}" alt="${prod.nombre}">
+            <div>
+              <h3>${prod.nombre}</h3>
+              <p class="price">Q ${prod.precio}</p>
+              <p class="desc">${prod.descripcion || ''}</p>
+              ${prod.tallas ? `<p style="font-size: 0.9rem; margin: 4px 0;"><strong>Tallas:</strong> ${prod.tallas}</p>` : ''}
+              ${prod.color ? `<p style="font-size: 0.9rem; margin: 4px 0;"><strong>Color:</strong> ${prod.color}</p>` : ''}
+            </div>
+          `;
+
+          const boton = document.createElement('button');
+          boton.innerText = 'Agregar al Carrito';
+          boton.onclick = () => agregarAlCarrito(prod.id, prod.nombre, prod.precio, prod.imagen_url);
+
+          tarjeta.appendChild(boton);
+          contenedor.appendChild(tarjeta);
+        });
+      })
+      .catch(err => console.error('Error cargando productos:', err));
+
+    function agregarAlCarrito(id, nombre, precio, imagen_url) {
+      const itemExistente = carrito.find(item => item.id === id);
+      if (itemExistente) {
+        itemExistente.cantidad += 1;
+      } else {
+        carrito.push({ id, nombre, precio, imagen_url, cantidad: 1 });
+      }
+      guardarYActualizar();
+    }
+
+    function guardarYActualizar() {
+      localStorage.setItem('carrito', JSON.stringify(carrito));
+      actualizarVistaCarrito();
+    }
+
+    function actualizarVistaCarrito() {
+      const cartItemsContainer = document.getElementById('cart-items');
+      const cartCount = document.getElementById('cart-count');
+      const cartTotal = document.getElementById('cart-total');
+
+      if (!cartItemsContainer) return;
+
+      cartItemsContainer.innerHTML = '';
+      let total = 0;
+      let totalProductos = 0;
+
+      carrito.forEach((prod, index) => {
+        total += prod.precio * prod.cantidad;
+        totalProductos += prod.cantidad;
+
+        cartItemsContainer.innerHTML += `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+            <div style="font-size: 14px;">
+              <strong>${prod.nombre}</strong><br>
+              x${prod.cantidad} - Q${(prod.precio * prod.cantidad).toFixed(2)}
+            </div>
+            <button onclick="eliminarDelCarrito(${index})" style="background: transparent; border: none; color: red; cursor: pointer; font-weight: bold;">❌</button>
+          </div>
+        `;
+      });
+
+      if (cartCount) cartCount.innerText = totalProductos;
+      if (cartTotal) cartTotal.innerText = total.toFixed(2);
+    }
+
+    function eliminarDelCarrito(index) {
+      carrito.splice(index, 1);
+      guardarYActualizar();
+    }
+
+    function toggleCart() {
+      const modal = document.getElementById('cart-modal');
+      modal.style.display = (modal.style.display === 'none' || modal.style.display === '') ? 'block' : 'none';
+    }
+
+    function enviarPedidoWhatsApp() {
+      if (carrito.length === 0) return alert('El carrito está vacío');
+
+      let mensaje = "Hola, me gustaría pedir los siguientes productos:\n\n";
+      let total = 0;
+
+      carrito.forEach(p => {
+        mensaje += `• ${p.nombre} (x${p.cantidad}) - Q${(p.precio * p.cantidad).toFixed(2)}\n`;
+        total += p.precio * p.cantidad;
+      });
+
+      mensaje += `\n*Total a pagar: Q${total.toFixed(2)}*`;
+
+      const numeroTelefono = "54164010"; // Coloca tu número de WhatsApp aquí
+      const url = `https://wa.me/${numeroTelefono}?text=${encodeURIComponent(mensaje)}`;
+      
+      window.open(url, '_blank');
+    }
+
+    actualizarVistaCarrito();
+  </script>
+</body>
+</html>
